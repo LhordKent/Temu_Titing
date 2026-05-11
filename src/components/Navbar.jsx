@@ -1,10 +1,74 @@
 'use client';
-import { Search, ShoppingCart, User, List, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, User, List, LogOut, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Navbar() {
   const { user, profile, signOut } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [cartCount, setCartCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [categories, setCategories] = useState([]);
+  const [showCategories, setShowCategories] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchCartCount();
+
+      // Subscribe to cart changes
+      const channel = supabase
+        .channel('cart_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'cart_items',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchCartCount();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } else {
+      setCartCount(0);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCartCount = async () => {
+    const { data, error } = await supabase
+      .from('cart_items')
+      .select('quantity')
+      .eq('user_id', user.id);
+
+    if (!error && data) {
+      const count = data.reduce((acc, item) => acc + item.quantity, 0);
+      setCartCount(count);
+    }
+  };
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('categories').select('*').order('name');
+    if (!error && data) setCategories(data);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <nav className="bg-[#1a1a1a] text-white border-b border-gray-800 sticky top-0 z-50">
@@ -19,23 +83,50 @@ export default function Navbar() {
           </div>
 
           {/* Categories Dropdown */}
-          <div className="hidden lg:flex items-center ml-4 cursor-pointer hover:text-temu transition-colors group relative">
-            <List className="w-5 h-5 mr-1" />
-            <span className="font-medium">Categories</span>
+          <div className="hidden lg:block ml-4 relative group">
+            <button 
+              onMouseEnter={() => setShowCategories(true)}
+              onMouseLeave={() => setShowCategories(false)}
+              className="flex items-center cursor-pointer hover:text-temu transition-colors font-medium py-4"
+            >
+              <List className="w-5 h-5 mr-1" />
+              <span>Categories</span>
+            </button>
+            
+            {showCategories && (
+              <div 
+                onMouseEnter={() => setShowCategories(true)}
+                onMouseLeave={() => setShowCategories(false)}
+                className="absolute top-full left-0 w-64 bg-[#222] border border-gray-800 rounded-b-xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-200"
+              >
+                {categories.map(cat => (
+                  <Link 
+                    key={cat.id} 
+                    href={`/?category=${cat.slug}`}
+                    className="block px-6 py-3 text-sm text-gray-300 hover:bg-temu hover:text-white transition-all font-medium"
+                    onClick={() => setShowCategories(false)}
+                  >
+                    {cat.name}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Search Bar */}
           <div className="flex-1 max-w-2xl px-4 ml-4 hidden md:flex">
-            <div className="relative w-full flex">
+            <form onSubmit={handleSearch} className="relative w-full flex">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white text-black rounded-l-full py-2 px-6 focus:outline-none focus:ring-2 focus:ring-temu placeholder-gray-500 font-medium"
                 placeholder="Search products, sellers, or categories..."
               />
-              <button className="bg-temu text-white px-6 rounded-r-full font-bold hover:bg-orange-600 transition-colors absolute right-0 top-0 bottom-0 flex items-center justify-center">
+              <button type="submit" className="bg-temu text-white px-6 rounded-r-full font-bold hover:bg-orange-600 transition-colors absolute right-0 top-0 bottom-0 flex items-center justify-center">
                 <Search className="w-5 h-5" />
               </button>
-            </div>
+            </form>
           </div>
 
           {/* Right Links */}
@@ -43,11 +134,15 @@ export default function Navbar() {
             
             {/* User Account */}
             {user ? (
-              <div className="hidden lg:flex items-center space-x-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-xs text-gray-400">Hello, {profile?.full_name || user.email}</span>
+              <div className="hidden lg:flex items-center space-x-6">
+                <Link href="/account/orders" className="flex flex-col items-center hover:text-temu transition-colors group">
+                  <Package className="w-5 h-5 mb-0.5 text-gray-400 group-hover:text-temu" />
+                  <span className="text-[10px] font-bold uppercase tracking-tighter">My Orders</span>
+                </Link>
+                <Link href="/profile" className="flex flex-col items-end hover:text-temu transition-colors border-l border-gray-800 pl-6">
+                  <span className="text-xs text-gray-400">Hello, {profile?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
                   <span className="text-[10px] font-bold text-temu uppercase">{profile?.role}</span>
-                </div>
+                </Link>
                 <button 
                   onClick={signOut}
                   className="p-2 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors"
@@ -66,22 +161,19 @@ export default function Navbar() {
             )}
 
 
-            {/* Seller/Driver Links */}
+            {/* Seller Link */}
             <div className="hidden md:flex space-x-4 ml-2">
-               {(!profile || profile.role === 'seller') && (
-                 <Link href="/seller/dashboard" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 px-2 py-1 rounded">Seller Center</Link>
-               )}
-               {(!profile || profile.role === 'driver') && (
-                 <Link href="/driver/dashboard" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 px-2 py-1 rounded">Logistics</Link>
-               )}
+              <Link href="/seller/dashboard" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 px-2 py-1 rounded">Seller Center</Link>
             </div>
 
             {/* Cart */}
             <Link href="/cart" className="flex items-center cursor-pointer hover:text-temu transition-colors relative">
               <ShoppingCart className="w-8 h-8" />
-              <span className="absolute -top-1 -right-2 bg-temu text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#1a1a1a]">
-                3
-              </span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-2 bg-temu text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#1a1a1a]">
+                  {cartCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>

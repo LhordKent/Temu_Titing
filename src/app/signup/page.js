@@ -13,7 +13,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     fullName: '',
-    role: 'customer'
+    role: 'seller'
   });
 
   const handleSignup = async (e) => {
@@ -108,26 +108,6 @@ export default function SignupPage() {
                 className="w-full bg-[#222] border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-temu transition-colors"
                 placeholder="••••••••"
               />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">I want to be a:</label>
-            <div className="grid grid-cols-3 gap-3">
-              {['customer', 'seller', 'driver'].map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setFormData({...formData, role})}
-                  className={`py-2 text-xs font-bold rounded-lg border transition-all ${
-                    formData.role === role 
-                    ? 'bg-temu border-temu text-white' 
-                    : 'bg-[#222] border-gray-700 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  {role.toUpperCase()}
-                </button>
-              ))}
             </div>
           </div>
 

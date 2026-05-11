@@ -16,16 +16,11 @@ export default function AddProduct() {
   const [formData, setFormData] = useState({
     title: '',
     price: '',
-    originalPrice: '',
+    stock: '',
     image_url: ''
   });
 
-  // Redirect if not a seller
-  useEffect(() => {
-    if (profile && profile.role !== 'seller') {
-      router.push('/');
-    }
-  }, [profile, router]);
+
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
@@ -74,10 +69,9 @@ export default function AddProduct() {
         .insert([{
           title: formData.title,
           price: parseFloat(formData.price),
-          discount_price: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
           images: [formData.image_url],
           seller_id: user.id,
-          stock_quantity: 100
+          stock_quantity: parseInt(formData.stock) || 0
         }]);
 
       if (error) throw error;
@@ -162,13 +156,14 @@ export default function AddProduct() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Original Price (₱) - Optional</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Stock Quantity</label>
                 <input 
                   type="number" 
-                  value={formData.originalPrice}
-                  onChange={(e) => setFormData({...formData, originalPrice: e.target.value})}
+                  required
+                  value={formData.stock}
+                  onChange={(e) => setFormData({...formData, stock: e.target.value})}
                   className="w-full bg-[#222] border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-temu" 
-                  placeholder="0.00" 
+                  placeholder="e.g. 100" 
                 />
               </div>
             </div>

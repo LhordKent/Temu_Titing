@@ -1,7 +1,13 @@
+'use client';
 import Link from 'next/link';
 import { LayoutDashboard, Package, ShoppingCart, LogOut, Store } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SellerLayout({ children }) {
+  const { profile } = useAuth();
+  const displayName = profile?.full_name || 'Seller';
+  const initial = displayName.charAt(0).toUpperCase();
+
   return (
     <div className="flex h-screen bg-[#111] text-white">
       {/* Sidebar */}
@@ -35,8 +41,8 @@ export default function SellerLayout({ children }) {
            <div className="md:hidden font-bold text-temu">Seller Center</div>
            <div className="flex items-center justify-end w-full">
              <div className="flex items-center space-x-3">
-               <div className="w-8 h-8 bg-temu rounded-full flex items-center justify-center font-bold">F</div>
-               <span className="font-medium text-sm hidden sm:block">Funky Novelty Store</span>
+               <div className="w-8 h-8 bg-temu rounded-full flex items-center justify-center font-bold">{initial}</div>
+               <span className="font-medium text-sm hidden sm:block">{displayName}</span>
              </div>
            </div>
         </header>

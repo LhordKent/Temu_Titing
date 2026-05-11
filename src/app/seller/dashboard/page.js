@@ -2,9 +2,9 @@ import { TrendingUp, Package, ShoppingCart } from 'lucide-react';
 
 export default function SellerDashboard() {
   const stats = [
-    { title: 'Total Sales', value: '₱45,231', icon: TrendingUp, color: 'text-green-500' },
-    { title: 'Active Orders', value: '12', icon: ShoppingCart, color: 'text-blue-500' },
-    { title: 'Products', value: '48', icon: Package, color: 'text-orange-500' },
+    { title: 'Total Sales', value: '₱0', icon: TrendingUp, color: 'text-green-500' },
+    { title: 'Active Orders', value: '0', icon: ShoppingCart, color: 'text-blue-500' },
+    { title: 'Products', value: '0', icon: Package, color: 'text-orange-500' },
   ];
 
   return (
@@ -29,16 +29,8 @@ export default function SellerDashboard() {
       {/* Recent Activity */}
       <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-6">
         <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
-        <div className="space-y-4">
-           {[1,2,3].map(i => (
-             <div key={i} className="flex justify-between items-center py-3 border-b border-gray-800 last:border-0">
-               <div>
-                 <p className="font-medium">Order #ORD-7{i}8{i}9</p>
-                 <p className="text-sm text-gray-500">2 items • ₱350.00</p>
-               </div>
-               <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 text-xs font-bold rounded-full">Pending Fulfillment</span>
-             </div>
-           ))}
+        <div className="text-center py-8 text-gray-500 italic">
+          No recent orders found.
         </div>
       </div>
     </div>

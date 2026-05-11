@@ -87,6 +87,18 @@ CREATE TABLE IF NOT EXISTS cart_items (
   UNIQUE(user_id, product_id)
 );
 
+-- Reviews
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5) NOT NULL,
+  comment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, product_id, order_id)
+);
+
 -- 3. ENABLE RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE warehouses ENABLE ROW LEVEL SECURITY;
@@ -95,6 +107,7 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 
 -- 4. POLICIES (The "Security Guard" rules)
 -- Warehouses: Anyone can read
@@ -124,6 +137,9 @@ CREATE POLICY "Drivers can see assigned orders" ON orders
 CREATE POLICY "Users can manage their own cart" ON cart_items 
   FOR ALL USING (auth.uid() = user_id);
 
+CREATE POLICY "Reviews are readable by everyone" ON reviews FOR SELECT USING (true);
+CREATE POLICY "Users can create reviews for products they bought" ON reviews 
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- 5. SEED DATA (Optional)
 -- No pre-seeded data.
