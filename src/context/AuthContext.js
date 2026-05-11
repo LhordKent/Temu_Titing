@@ -24,13 +24,17 @@ export const AuthProvider = ({ children }) => {
     getSession();
 
     // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
         setProfile(null);
         setLoading(false);
+      }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.href = '/reset-password';
       }
     });
 

@@ -1,37 +1,35 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Loader2, Mail, Lock } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleLogin = async (e) => {
+  const handlePasswordUpdate = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
+      const { error } = await supabase.auth.updateUser({
+        password: password
       });
 
       if (error) throw error;
       
-      if (data.user) {
-        // Redirect logic will happen here or in a middleware
-        router.push('/');
-        router.refresh();
-      }
+      alert('Password updated successfully! You can now log in with your new password.');
+      router.push('/login');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,10 +45,10 @@ export default function LoginPage() {
             <span className="text-white">Te</span>
             <span className="text-temu">mu</span>
           </h1>
-          <p className="text-gray-400">Welcome back! Sign in to your account</p>
+          <p className="text-gray-400 text-sm">Create a new password</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handlePasswordUpdate} className="space-y-4">
           {error && (
             <div className="bg-red-900/30 border border-red-500 text-red-200 text-sm p-3 rounded-lg">
               {error}
@@ -58,32 +56,29 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full bg-[#222] border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-temu transition-colors"
-                placeholder="name@example.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1 flex justify-between">
-              Password
-              <Link href="/forgot-password" className="text-xs text-temu hover:underline">Forgot password?</Link>
-            </label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">New Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
               <input
                 type="password"
                 required
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#222] border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-temu transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Confirm New Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full bg-[#222] border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-temu transition-colors"
                 placeholder="••••••••"
               />
@@ -95,16 +90,9 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-temu hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-orange-900/40 transition-all flex items-center justify-center"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          Don't have an account?{' '}
-          <Link href="/signup" className="text-temu font-bold hover:underline">
-            Sign Up
-          </Link>
-        </div>
       </div>
     </div>
   );
