@@ -49,7 +49,9 @@ export default async function SellerProducts() {
                     <span className="font-medium line-clamp-1">{product.title}</span>
                   </td>
                   <td className="p-4 font-bold">₱{product.price}</td>
-                  <td className="p-4 text-green-500 font-medium">{product.stock_quantity > 0 ? 'In Stock' : 'Out of Stock'}</td>
+                  <td className={`p-4 font-medium ${product.stock_quantity > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {product.stock_quantity > 0 ? `${product.stock_quantity} in stock` : 'Out of Stock'}
+                  </td>
                   <td className="p-4">
                     <div className="flex space-x-3">
                       <button className="text-blue-400 hover:text-blue-300"><Edit className="w-5 h-5" /></button>
