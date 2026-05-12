@@ -51,10 +51,20 @@ export default function Checkout() {
 
     setPlacing(true);
     try {
-      // 0. Check stock validity
+      // 0. Check REAL-TIME stock validity
       for (const item of cartItems) {
-        if (item.quantity > item.product.stock_quantity) {
-          throw new Error(`Not enough stock for ${item.product.title}. Only ${item.product.stock_quantity} left.`);
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', item.product.id)
+          .single();
+
+        if (fetchError || !currentProduct) {
+           throw new Error(`Failed to verify stock for ${item.product.title}.`);
+        }
+
+        if (item.quantity > currentProduct.stock_quantity) {
+          throw new Error(`Not enough stock for ${item.product.title}. Only ${currentProduct.stock_quantity} left.`);
         }
       }
 
@@ -91,16 +101,24 @@ export default function Checkout() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Decrement stock for each product
+      // 3. Decrement stock for each product securely
       for (const item of cartItems) {
-        const newStock = item.product.stock_quantity - item.quantity;
-        const { error: stockError } = await supabase
+        const { data: currentProduct } = await supabase
           .from('products')
-          .update({ stock_quantity: newStock })
-          .eq('id', item.product.id);
-          
-        if (stockError) {
-          console.error("Failed to update stock for product", item.product.id, stockError);
+          .select('stock_quantity')
+          .eq('id', item.product.id)
+          .single();
+
+        if (currentProduct) {
+          const newStock = Math.max(0, currentProduct.stock_quantity - item.quantity);
+          const { error: stockError } = await supabase
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product.id);
+            
+          if (stockError) {
+            console.error("Failed to update stock for product", item.product.id, stockError);
+          }
         }
       }
 

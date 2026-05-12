@@ -18,6 +18,9 @@ export default function OrderHistory() {
   const [reviewData, setReviewData] = useState({ productId: '', orderId: '', rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [trackOrder, setTrackOrder] = useState(null);
+
   useEffect(() => {
     if (user) {
       fetchOrders();
@@ -194,7 +197,12 @@ export default function OrderHistory() {
                     Placed on {new Date(order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   </div>
                   <div className="flex space-x-3">
-                    <button className="px-6 py-2 text-xs font-bold text-gray-300 border border-gray-700 rounded-full hover:bg-gray-800 transition-colors">
+                    <button 
+                      onClick={() => {
+                        setTrackOrder(order);
+                        setShowTrackModal(true);
+                      }}
+                      className="px-6 py-2 text-xs font-bold text-gray-300 border border-gray-700 rounded-full hover:bg-gray-800 transition-colors">
                       Track Package
                     </button>
                     <button 
@@ -259,6 +267,60 @@ export default function OrderHistory() {
                 {submittingReview ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Review'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tracking Modal */}
+      {showTrackModal && trackOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] border border-gray-800 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in duration-300">
+            <h2 className="text-2xl font-black text-white mb-6">Track Package</h2>
+            
+            <div className="relative pl-6 space-y-8 before:absolute before:inset-0 before:ml-[11px] before:w-0.5 before:bg-gray-800">
+              {[
+                { status: 'pending', label: 'Order Placed', icon: Clock },
+                { status: 'packed', label: 'Packed & Ready', icon: Package },
+                { status: 'shipped', label: 'In Transit', icon: Truck },
+                { status: 'delivered', label: 'Delivered', icon: CheckCircle }
+              ].map((step, index, arr) => {
+                const statusOrder = ['pending', 'packed', 'shipped', 'delivered'];
+                const currentStatusIndex = statusOrder.indexOf(trackOrder.status);
+                const stepIndex = statusOrder.indexOf(step.status);
+                
+                const isCompleted = stepIndex <= currentStatusIndex;
+                const isCurrent = stepIndex === currentStatusIndex;
+                const Icon = step.icon;
+
+                return (
+                  <div key={step.status} className="relative z-10 flex items-center">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center absolute -left-6 ${isCompleted ? 'bg-temu' : 'bg-gray-800'} border-4 border-[#1a1a1a] transition-colors`}>
+                      <Icon className={`w-3 h-3 ${isCompleted ? 'text-white' : 'text-gray-500'}`} />
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <p className={`font-bold ${isCurrent ? 'text-temu' : isCompleted ? 'text-white' : 'text-gray-500'}`}>
+                        {step.label}
+                      </p>
+                      {isCurrent && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {step.status === 'pending' && 'Waiting for seller to pack your order.'}
+                          {step.status === 'packed' && 'Order is packed and waiting for courier.'}
+                          {step.status === 'shipped' && 'Courier is on the way to your address.'}
+                          {step.status === 'delivered' && 'Package has been delivered successfully!'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button 
+              onClick={() => setShowTrackModal(false)}
+              className="w-full mt-8 py-3 bg-[#222] border border-gray-800 text-white font-bold rounded-full hover:bg-gray-800 transition-colors"
+            >
+              Close Tracking
+            </button>
           </div>
         </div>
       )}
