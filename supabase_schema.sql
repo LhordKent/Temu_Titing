@@ -141,6 +141,22 @@ CREATE POLICY "Reviews are readable by everyone" ON reviews FOR SELECT USING (tr
 CREATE POLICY "Users can create reviews for products they bought" ON reviews 
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 5. SEED DATA (Optional)
--- No pre-seeded data.
+-- 5. FUNCTIONS & TRIGGERS
+-- Function to automatically decrement stock when an order is placed
+CREATE OR REPLACE FUNCTION public.decrement_stock_on_order()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.products
+  SET stock_quantity = stock_quantity - new.quantity
+  WHERE id = new.product_id;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Trigger that calls the function after an order item is inserted
+CREATE OR REPLACE TRIGGER trigger_decrement_stock
+  AFTER INSERT ON public.order_items
+  FOR EACH ROW EXECUTE PROCEDURE public.decrement_stock_on_order();
+
+-- 6. SEED DATA (Optional)
+-- No pre-seeded data.

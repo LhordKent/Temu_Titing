@@ -101,28 +101,7 @@ export default function Checkout() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Decrement stock for each product securely
-      for (const item of cartItems) {
-        const { data: currentProduct } = await supabase
-          .from('products')
-          .select('stock_quantity')
-          .eq('id', item.product.id)
-          .single();
-
-        if (currentProduct) {
-          const newStock = Math.max(0, currentProduct.stock_quantity - item.quantity);
-          const { error: stockError } = await supabase
-            .from('products')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.product.id);
-            
-          if (stockError) {
-            console.error("Failed to update stock for product", item.product.id, stockError);
-          }
-        }
-      }
-
-      // 4. Clear cart
+      // 3. Clear cart
       await supabase
         .from('cart_items')
         .delete()
