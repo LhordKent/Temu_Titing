@@ -3,6 +3,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SellerProducts() {
   // For now, we fetch all products or filter by the mock seller ID
   const { data: sellerProducts, error } = await supabase
