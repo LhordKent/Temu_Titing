@@ -51,6 +51,13 @@ export default function Checkout() {
 
     setPlacing(true);
     try {
+      // 0. Check stock validity
+      for (const item of cartItems) {
+        if (item.quantity > item.product.stock_quantity) {
+          throw new Error(`Not enough stock for ${item.product.title}. Only ${item.product.stock_quantity} left.`);
+        }
+      }
+
       // 1. Create the order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -84,7 +91,20 @@ export default function Checkout() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Clear cart
+      // 3. Decrement stock for each product
+      for (const item of cartItems) {
+        const newStock = item.product.stock_quantity - item.quantity;
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({ stock_quantity: newStock })
+          .eq('id', item.product.id);
+          
+        if (stockError) {
+          console.error("Failed to update stock for product", item.product.id, stockError);
+        }
+      }
+
+      // 4. Clear cart
       await supabase
         .from('cart_items')
         .delete()
