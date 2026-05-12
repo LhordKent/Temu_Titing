@@ -1,5 +1,5 @@
 'use client';
-import { Search, ShoppingCart, User, List, LogOut, Package } from 'lucide-react';
+import { Search, ShoppingCart, User, LogOut, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useState, useEffect } from 'react';
@@ -12,8 +12,6 @@ export default function Navbar() {
   const searchParams = useSearchParams();
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [categories, setCategories] = useState([]);
-  const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -40,10 +38,6 @@ export default function Navbar() {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   const fetchCartCount = async () => {
     const { data, error } = await supabase
       .from('cart_items')
@@ -54,11 +48,6 @@ export default function Navbar() {
       const count = data.reduce((acc, item) => acc + item.quantity, 0);
       setCartCount(count);
     }
-  };
-
-  const fetchCategories = async () => {
-    const { data, error } = await supabase.from('categories').select('*').order('name');
-    if (!error && data) setCategories(data);
   };
 
   const handleSearch = (e) => {
@@ -82,36 +71,6 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Categories Dropdown */}
-          <div className="hidden lg:block ml-4 relative group">
-            <button 
-              onMouseEnter={() => setShowCategories(true)}
-              onMouseLeave={() => setShowCategories(false)}
-              className="flex items-center cursor-pointer hover:text-temu transition-colors font-medium py-4"
-            >
-              <List className="w-5 h-5 mr-1" />
-              <span>Categories</span>
-            </button>
-            
-            {showCategories && (
-              <div 
-                onMouseEnter={() => setShowCategories(true)}
-                onMouseLeave={() => setShowCategories(false)}
-                className="absolute top-full left-0 w-64 bg-[#222] border border-gray-800 rounded-b-xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-200"
-              >
-                {categories.map(cat => (
-                  <Link 
-                    key={cat.id} 
-                    href={`/?category=${cat.slug}`}
-                    className="block px-6 py-3 text-sm text-gray-300 hover:bg-temu hover:text-white transition-all font-medium"
-                    onClick={() => setShowCategories(false)}
-                  >
-                    {cat.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Search Bar */}
           <div className="flex-1 max-w-2xl px-4 ml-4 hidden md:flex">
