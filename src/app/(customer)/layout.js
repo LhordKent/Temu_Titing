@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import TopBanner from '@/components/TopBanner';
 import Navbar from '@/components/Navbar';
 
@@ -5,7 +6,9 @@ export default function CustomerLayout({ children }) {
   return (
     <>
       <TopBanner />
-      <Navbar />
+      <Suspense fallback={<div className="h-16 bg-[#1a1a1a] border-b border-gray-800" />}>
+        <Navbar />
+      </Suspense>
       <main className="flex-grow">{children}</main>
       
       {/* Footer Placeholder */}
