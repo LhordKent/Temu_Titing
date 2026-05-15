@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
-import { Package, Truck, CheckCircle, Loader2, Search, Filter, ChevronRight, User, MapPin, Phone } from 'lucide-react';
+import { Package, Truck, CheckCircle, Loader2, Search, Filter, ChevronRight, User, MapPin, Phone, Trash2, RotateCcw } from 'lucide-react';
 
 export default function SellerOrders() {
   const { user } = useAuth();
@@ -11,12 +11,13 @@ export default function SellerOrders() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending'); // pending, packed, shipped, completed
   const [updatingId, setUpdatingId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchOrders();
     }
-  }, [user]);
+  }, [user, showArchived]);
 
   const fetchOrders = async () => {
     try {
@@ -32,6 +33,7 @@ export default function SellerOrders() {
           )
         `)
         .eq('seller_id', user.id)
+        .eq('hidden_by_seller', showArchived)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -64,6 +66,27 @@ export default function SellerOrders() {
     }
   };
 
+  const toggleArchive = async (orderId, shouldHide) => {
+    if (shouldHide && !window.confirm('Hide this order from your dashboard? This won\'t delete the order from the database, but it will clear it from your view.')) return;
+    
+    setUpdatingId(orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ hidden_by_seller: shouldHide })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      
+      // Update local state by removing it from the current list (active or archived)
+      setOrders(prev => prev.filter(order => order.id !== orderId));
+    } catch (err) {
+      alert(`Error ${shouldHide ? 'hiding' : 'restoring'} order: ` + err.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const filteredOrders = orders.filter(order => {
     if (activeTab === 'pending') return order.status === 'pending';
     if (activeTab === 'packed') return order.status === 'packed';
@@ -79,7 +102,7 @@ export default function SellerOrders() {
     { id: 'completed', label: 'Completed', count: orders.filter(o => o.status === 'delivered').length },
   ];
 
-  if (loading) return (
+  if (loading && orders.length === 0) return (
     <div className="flex justify-center py-20">
       <Loader2 className="w-10 h-10 animate-spin text-temu" />
     </div>
@@ -88,9 +111,30 @@ export default function SellerOrders() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-black text-white">Order Fulfillment</h1>
-        <div className="text-sm text-gray-400 font-medium">
-          Total Store Orders: <span className="text-white">{orders.length}</span>
+        <h1 className="text-2xl font-black text-white">
+          {showArchived ? 'Archived Orders' : 'Order Fulfillment'}
+        </h1>
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={() => {
+              setShowArchived(!showArchived);
+              setOrders([]); // Clear local state to trigger full loading feel
+            }}
+            className={`text-xs font-bold px-4 py-2 rounded-full border transition-all flex items-center ${
+              showArchived 
+                ? 'bg-temu/10 border-temu text-temu hover:bg-temu/20' 
+                : 'bg-[#1a1a1a] border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
+            }`}
+          >
+            {showArchived ? (
+              <>Back to Active Orders</>
+            ) : (
+              <><Filter className="w-3 h-3 mr-2" /> View Archived</>
+            )}
+          </button>
+          <div className="text-sm text-gray-400 font-medium">
+            Total {showArchived ? 'Archived' : 'Active'}: <span className="text-white">{orders.length}</span>
+          </div>
         </div>
       </div>
       
@@ -123,10 +167,14 @@ export default function SellerOrders() {
         </div>
 
         <div className="p-6">
-          {filteredOrders.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-temu" />
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="text-center py-20">
               <Package className="w-16 h-16 text-gray-800 mx-auto mb-4" />
-              <p className="text-gray-500 italic">No orders found in this category.</p>
+              <p className="text-gray-500 italic">No {showArchived ? 'archived' : ''} orders found in this category.</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -192,40 +240,63 @@ export default function SellerOrders() {
                       </div>
 
                       <div className="pt-4 border-t border-gray-700">
-                        {order.status === 'pending' && (
+                        {showArchived ? (
                           <button 
-                            onClick={() => updateOrderStatus(order.id, 'packed')}
+                            onClick={() => toggleArchive(order.id, false)}
                             disabled={updatingId === order.id}
-                            className="w-full bg-temu hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20"
+                            className="w-full bg-white hover:bg-gray-200 text-black font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50"
                           >
-                            {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
-                            Mark as Packed
+                            {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+                            Restore to Active
                           </button>
-                        )}
-                        {order.status === 'packed' && (
-                          <button 
-                            onClick={() => updateOrderStatus(order.id, 'shipped')}
-                            disabled={updatingId === order.id}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50"
-                          >
-                            {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
-                            Mark as Shipped
-                          </button>
-                        )}
-                        {order.status === 'shipped' && (
-                          <button 
-                            onClick={() => updateOrderStatus(order.id, 'delivered')}
-                            disabled={updatingId === order.id}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50"
-                          >
-                            {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                            Confirm Delivery
-                          </button>
-                        )}
-                        {order.status === 'delivered' && (
-                          <div className="w-full bg-gray-800 text-gray-500 font-bold py-2.5 rounded-lg text-xs flex items-center justify-center border border-gray-700">
-                            <CheckCircle className="w-4 h-4 mr-2" /> Order Completed
-                          </div>
+                        ) : (
+                          <>
+                            {order.status === 'pending' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'packed')}
+                                disabled={updatingId === order.id}
+                                className="w-full bg-temu hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20"
+                              >
+                                {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
+                                Mark as Packed
+                              </button>
+                            )}
+                            {order.status === 'packed' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'shipped')}
+                                disabled={updatingId === order.id}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50"
+                              >
+                                {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
+                                Mark as Shipped
+                              </button>
+                            )}
+                            {order.status === 'shipped' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'delivered')}
+                                disabled={updatingId === order.id}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center transition-all disabled:opacity-50"
+                              >
+                                {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                                Confirm Delivery
+                              </button>
+                            )}
+                            {order.status === 'delivered' && (
+                              <div className="space-y-2">
+                                <div className="w-full bg-gray-800 text-gray-500 font-bold py-2.5 rounded-lg text-xs flex items-center justify-center border border-gray-700">
+                                  <CheckCircle className="w-4 h-4 mr-2" /> Order Completed
+                                </div>
+                                <button 
+                                  onClick={() => toggleArchive(order.id, true)}
+                                  disabled={updatingId === order.id}
+                                  className="w-full hover:bg-red-500/10 text-gray-600 hover:text-red-400 font-bold py-2 rounded-lg text-[10px] flex items-center justify-center transition-all border border-transparent hover:border-red-400/20"
+                                >
+                                  {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Trash2 className="w-3 h-3 mr-1.5" />}
+                                  Archive from View
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

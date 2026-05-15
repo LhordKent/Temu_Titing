@@ -9,7 +9,8 @@ export default async function Homepage({ searchParams }) {
 
   let dbQuery = supabase
     .from('products')
-    .select('*');
+    .select('*')
+    .eq('is_active', true);
 
   if (query) {
     dbQuery = dbQuery.ilike('title', `%${query}%`);

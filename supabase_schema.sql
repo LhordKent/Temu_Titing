@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS products (
   discount_price NUMERIC(10,2),
   stock_quantity INTEGER DEFAULT 0,
   images JSONB DEFAULT '[]', -- Array of image URLs
+  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total_amount NUMERIC(10,2) NOT NULL,
   shipping_address JSONB NOT NULL,
   pickup_address TEXT,
+  hidden_by_seller BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
