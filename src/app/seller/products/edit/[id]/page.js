@@ -1,16 +1,20 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { Upload, Loader2, X } from 'lucide-react';
+import { useState, useEffect, useRef, use } from 'react';
+import { Upload, Loader2, X, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Image from 'next/image';
 
-export default function AddProduct() {
+export default function EditProduct({ params: paramsPromise }) {
+  const params = use(paramsPromise);
+  const { id } = params;
   const router = useRouter();
   const fileInputRef = useRef(null);
-  const { user, profile } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [formData, setFormData] = useState({
@@ -21,7 +25,40 @@ export default function AddProduct() {
     image_url: ''
   });
 
+  useEffect(() => {
+    if (user && id) {
+      fetchProduct();
+    }
+  }, [user, id]);
 
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .eq('seller_id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      setFormData({
+        title: data.title,
+        description: data.description || '',
+        price: data.price.toString(),
+        stock: data.stock_quantity.toString(),
+        image_url: data.images?.[0] || ''
+      });
+      setPreview(data.images?.[0] || null);
+    } catch (err) {
+      console.error('Error fetching product:', err);
+      alert('Error fetching product details');
+      router.push('/seller/products');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
@@ -37,7 +74,7 @@ export default function AddProduct() {
       const filePath = `${user.id}/${fileName}`;
 
       // Upload to Supabase 'products' bucket
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('products')
         .upload(filePath, file);
 
@@ -51,7 +88,7 @@ export default function AddProduct() {
       setFormData({ ...formData, image_url: publicUrl });
     } catch (error) {
       alert('Error uploading image: ' + error.message);
-      setPreview(null);
+      setPreview(formData.image_url);
     } finally {
       setUploading(false);
     }
@@ -62,34 +99,44 @@ export default function AddProduct() {
     if (!user) return alert('Please login first');
     if (!formData.image_url) return alert('Please upload an image first');
     
-    setLoading(true);
+    setSaving(true);
 
     try {
       const { error } = await supabase
         .from('products')
-        .insert([{
+        .update({
           title: formData.title,
           description: formData.description,
           price: parseFloat(formData.price),
           images: [formData.image_url],
-          seller_id: user.id,
           stock_quantity: parseInt(formData.stock) || 0
-        }]);
+        })
+        .eq('id', id)
+        .eq('seller_id', user.id);
 
       if (error) throw error;
       router.push('/seller/products');
     } catch (err) {
-      alert('Error saving product: ' + err.message);
+      alert('Error updating product: ' + err.message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-temu animate-spin mb-4" />
+        <p className="text-gray-400">Loading product details...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6 text-white">Add New Product</h1>
+      <h1 className="text-2xl font-bold mb-6 text-white">Edit Product</h1>
       
-      <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-6">
+      <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-6 shadow-2xl">
          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Image Upload Area */}
             <div>
@@ -162,6 +209,7 @@ export default function AddProduct() {
                 <label className="block text-sm font-medium text-gray-400 mb-2">Price (₱)</label>
                 <input 
                   type="number" 
+                  step="0.01"
                   required
                   value={formData.price}
                   onChange={(e) => setFormData({...formData, price: e.target.value})}
@@ -187,17 +235,17 @@ export default function AddProduct() {
               <button 
                 type="button" 
                 onClick={() => router.back()}
-                className="px-6 py-3 border border-gray-600 rounded-lg text-white font-medium mr-4 hover:bg-[#222]"
+                className="px-6 py-3 border border-gray-600 rounded-lg text-white font-medium mr-4 hover:bg-[#222] transition-colors"
               >
                 Cancel
               </button>
               <button 
                 type="submit" 
-                disabled={loading || uploading}
-                className="px-6 py-3 bg-temu rounded-lg text-white font-bold hover:bg-orange-600 shadow-lg shadow-orange-900/50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving || uploading}
+                className="px-6 py-3 bg-temu rounded-lg text-white font-bold hover:bg-orange-600 shadow-lg shadow-orange-900/50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
               >
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {loading ? 'Saving...' : 'Save Product'}
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                {saving ? 'Updating...' : 'Update Product'}
               </button>
             </div>
          </form>

@@ -1,10 +1,32 @@
 'use client';
 import Link from 'next/link';
-import { LayoutDashboard, Package, ShoppingCart, LogOut, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, LogOut, Store, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SellerLayout({ children }) {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && (!profile || profile.role !== 'seller')) {
+      router.push('/');
+    }
+  }, [profile, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="h-screen bg-[#111] flex items-center justify-center text-white">
+        <Loader2 className="w-12 h-12 text-temu animate-spin" />
+      </div>
+    );
+  }
+
+  if (!profile || profile.role !== 'seller') {
+    return null; // Will redirect via useEffect
+  }
+
   const displayName = profile?.full_name || 'Seller';
   const initial = displayName.charAt(0).toUpperCase();
 

@@ -98,9 +98,8 @@ export default function Navbar() {
                   <Package className="w-5 h-5 mb-0.5 text-gray-400 group-hover:text-temu" />
                   <span className="text-[10px] font-bold uppercase tracking-tighter">My Orders</span>
                 </Link>
-                <Link href="/profile" className="flex flex-col items-end hover:text-temu transition-colors border-l border-gray-800 pl-6">
+                <Link href="/profile" className="flex flex-col items-end justify-center hover:text-temu transition-colors border-l border-gray-800 pl-6">
                   <span className="text-xs text-gray-400">Hello, {profile?.full_name?.split(' ')[0] || user.email.split('@')[0]}</span>
-                  <span className="text-[10px] font-bold text-temu uppercase">{profile?.role}</span>
                 </Link>
                 <button 
                   onClick={signOut}
@@ -120,20 +119,26 @@ export default function Navbar() {
             )}
 
 
-            {/* Seller Link */}
-            <div className="hidden md:flex space-x-4 ml-2">
-              <Link href="/seller/dashboard" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 px-2 py-1 rounded">Seller Center</Link>
-            </div>
+            {/* Seller Link & Cart */}
+            {user && (
+              <div className="flex items-center space-x-6">
+                {profile?.role === 'seller' && (
+                  <div className="hidden md:flex space-x-4 ml-2">
+                    <Link href="/seller/dashboard" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 px-2 py-1 rounded">Seller Center</Link>
+                  </div>
+                )}
 
-            {/* Cart */}
-            <Link href="/cart" className="flex items-center cursor-pointer hover:text-temu transition-colors relative">
-              <ShoppingCart className="w-8 h-8" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-2 bg-temu text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#1a1a1a]">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+                {/* Cart */}
+                <Link href="/cart" className="flex items-center cursor-pointer hover:text-temu transition-colors relative">
+                  <ShoppingCart className="w-8 h-8" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-2 bg-temu text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#1a1a1a]">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

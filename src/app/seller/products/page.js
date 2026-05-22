@@ -108,12 +108,12 @@ export default function SellerProducts() {
                   </td>
                   <td className="p-4">
                     <div className="flex space-x-2">
-                      <button 
-                        onClick={() => alert('Edit feature coming soon!')}
+                      <Link 
+                        href={`/seller/products/edit/${product.id}`}
                         className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all"
                       >
                         <Edit className="w-5 h-5" />
-                      </button>
+                      </Link>
                       <button 
                         onClick={() => handleDelete(product.id, product.title)}
                         disabled={deletingId === product.id}

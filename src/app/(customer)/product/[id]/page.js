@@ -146,6 +146,16 @@ export default function ProductDetails({ params: paramsPromise }) {
              </div>
           </div>
 
+          {/* Description */}
+          {product.description && (
+            <div className="mb-8">
+              <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">Description</h3>
+              <p className="text-gray-300 leading-relaxed text-sm whitespace-pre-wrap">
+                {product.description}
+              </p>
+            </div>
+          )}
+
 
           <div className="mt-auto space-y-3">
              {isOwner ? (
