@@ -22,10 +22,20 @@ export default function ProductCard({ product }) {
 
     setLoading(true);
     try {
-      // Upsert cart item (increment if exists, insert if not)
-      // Note: In Supabase, we can use ON CONFLICT or just check first.
-      // Since our schema has UNIQUE(user_id, product_id), we can use upsert.
-      
+      // 1. Fetch real-time latest stock quantity
+      const { data: latestProduct, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', product.id)
+        .single();
+
+      if (productError || !latestProduct) {
+        throw new Error('Failed to verify latest stock.');
+      }
+
+      const stockQuantity = latestProduct.stock_quantity;
+
+      // 2. Fetch existing cart item quantity
       const { data: existingItem } = await supabase
         .from('cart_items')
         .select('*')
@@ -33,10 +43,17 @@ export default function ProductCard({ product }) {
         .eq('product_id', product.id)
         .single();
 
+      const existingQty = existingItem ? existingItem.quantity : 0;
+
+      if (existingQty + 1 > stockQuantity) {
+        alert(`Cannot add more. You already have ${existingQty} in your cart, and only ${stockQuantity} are left in stock.`);
+        return;
+      }
+
       if (existingItem) {
         const { error } = await supabase
           .from('cart_items')
-          .update({ quantity: existingItem.quantity + 1 })
+          .update({ quantity: existingQty + 1 })
           .eq('id', existingItem.id);
         if (error) throw error;
       } else {
@@ -47,7 +64,6 @@ export default function ProductCard({ product }) {
       }
 
       alert('Added to cart!');
-      // Optional: Refresh cart count in header if we had a state for it
     } catch (error) {
       console.error('Error adding to cart:', error);
       alert('Failed to add to cart: ' + error.message);
@@ -109,6 +125,10 @@ export default function ProductCard({ product }) {
           {user?.id === product.seller_id ? (
             <div className="w-full py-2 rounded-full border border-gray-800 text-gray-600 font-semibold flex items-center justify-center text-xs bg-[#222]">
               You own this product
+            </div>
+          ) : product.stock_quantity === 0 ? (
+            <div className="w-full py-2 rounded-full border border-gray-800 text-gray-500 font-semibold flex items-center justify-center text-xs bg-[#222]">
+              Out of Stock
             </div>
           ) : (
             <button 

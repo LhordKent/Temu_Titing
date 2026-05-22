@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -13,15 +13,8 @@ export default function Checkout() {
   const [cartItems, setCartItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('cod');
 
-  useEffect(() => {
-    if (user) {
-      fetchCart();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('cart_items')
@@ -38,9 +31,23 @@ export default function Checkout() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, router]);
+
+  useEffect(() => {
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchCart();
+    } else {
+      setTimeout(() => {
+        setLoading(false);
+      }, 0);
+    }
+  }, [user, fetchCart]);
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const uniqueSellersCount = new Set(cartItems.map(item => item.product?.seller_id).filter(Boolean)).size;
+  const shippingFee = uniqueSellersCount * 80;
+  const grandTotal = subtotal + shippingFee;
 
   const handlePlaceOrder = async () => {
     if (!profile?.address || !profile?.phone) {
@@ -68,38 +75,55 @@ export default function Checkout() {
         }
       }
 
-      // 1. Create the order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          customer_id: user.id,
-          seller_id: cartItems[0].product.seller_id, // Simplified: assumes one seller per order for now
-          total_amount: subtotal,
-          status: 'pending',
-          shipping_address: {
-            full_name: profile.full_name,
-            phone: profile.phone,
-            address: profile.address
-          }
-        }])
-        .select()
-        .single();
+      // 1. Group cart items by seller_id
+      const itemsBySeller = {};
+      for (const item of cartItems) {
+        const sellerId = item.product.seller_id;
+        if (!sellerId) {
+          throw new Error(`Product "${item.product.title}" has no seller associated with it.`);
+        }
+        if (!itemsBySeller[sellerId]) {
+          itemsBySeller[sellerId] = [];
+        }
+        itemsBySeller[sellerId].push(item);
+      }
 
-      if (orderError) throw orderError;
+      // 2. Create separate order and order items for each seller group
+      for (const [sellerId, sellerItems] of Object.entries(itemsBySeller)) {
+        const sellerSubtotal = sellerItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+        const sellerTotal = sellerSubtotal + 80;
 
-      // 2. Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        price_at_purchase: item.product.price
-      }));
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert([{
+            customer_id: user.id,
+            seller_id: sellerId,
+            total_amount: sellerTotal,
+            status: 'pending',
+            shipping_address: {
+              full_name: profile.full_name,
+              phone: profile.phone,
+              address: profile.address
+            }
+          }])
+          .select()
+          .single();
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+        if (orderError) throw orderError;
 
-      if (itemsError) throw itemsError;
+        const orderItemsData = sellerItems.map(item => ({
+          order_id: order.id,
+          product_id: item.product.id,
+          quantity: item.quantity,
+          price_at_purchase: item.product.price
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItemsData);
+
+        if (itemsError) throw itemsError;
+      }
 
       // 3. Clear cart
       await supabase
@@ -193,11 +217,15 @@ export default function Checkout() {
              </div>
              <div className="flex justify-between text-gray-400">
                <span>Shipping Fee</span>
-               <span className="text-green-400 font-bold">FREE</span>
+               {shippingFee > 0 ? (
+                 <span className="text-white font-bold">₱{shippingFee}</span>
+               ) : (
+                 <span className="text-green-400 font-bold">FREE</span>
+               )}
              </div>
              <div className="flex justify-between items-baseline pt-4">
                <span className="text-lg font-bold text-white">Grand Total</span>
-               <span className="text-2xl font-black text-temu">₱{subtotal}</span>
+               <span className="text-2xl font-black text-temu">₱{grandTotal}</span>
              </div>
            </div>
 

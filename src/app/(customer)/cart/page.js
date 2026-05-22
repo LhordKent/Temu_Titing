@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Trash2, Loader2, Minus, Plus } from 'lucide-react';
@@ -11,15 +11,8 @@ export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchCart();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('cart_items')
@@ -30,7 +23,9 @@ export default function Cart() {
             id,
             title,
             price,
-            images
+            images,
+            stock_quantity,
+            seller_id
           )
         `)
         .eq('user_id', user.id);
@@ -42,10 +37,30 @@ export default function Cart() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchCart();
+    } else {
+      setTimeout(() => {
+        setLoading(false);
+      }, 0);
+    }
+  }, [user, fetchCart]);
 
   const updateQuantity = async (id, newQty) => {
     if (newQty < 1) return;
+    const item = cartItems.find(i => i.id === id);
+    if (!item) return;
+
+    const maxStock = item.product?.stock_quantity ?? 0;
+    if (newQty > maxStock) {
+      alert(`Cannot add more than the actual stock (Only ${maxStock} left).`);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('cart_items')
@@ -72,6 +87,10 @@ export default function Cart() {
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.product?.price || 0) * item.quantity, 0);
+  const uniqueSellersCount = new Set(cartItems.map(item => item.product?.seller_id).filter(Boolean)).size;
+  const shippingFee = uniqueSellersCount * 80;
+  const grandTotal = subtotal + shippingFee;
+  const hasInvalidStockItem = cartItems.some(item => item.quantity > (item.product?.stock_quantity ?? 0));
 
   if (loading) {
     return (
@@ -119,6 +138,14 @@ export default function Cart() {
                       <Trash2 className="w-5 h-5"/>
                     </button>
                   </div>
+                  {/* Warning if stock exceeded */}
+                  {item.quantity > (item.product?.stock_quantity ?? 0) && (
+                    <p className="text-red-500 text-xs font-bold mt-1">
+                      {item.product?.stock_quantity === 0 
+                        ? 'Out of stock. Please remove this item.' 
+                        : `Only ${item.product?.stock_quantity} left in stock. Please reduce quantity.`}
+                    </p>
+                  )}
                   <div className="mt-auto flex justify-between items-end">
                      <div className="text-xl font-bold text-temu">₱{item.product?.price}</div>
                      <div className="flex items-center border border-gray-700 rounded-full overflow-hidden">
@@ -131,7 +158,8 @@ export default function Cart() {
                         <span className="px-4 text-white text-sm font-medium">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="px-3 py-1 bg-[#2a2a2a] text-white hover:bg-gray-700 transition-colors"
+                          disabled={item.quantity >= (item.product?.stock_quantity ?? 0)}
+                          className="px-3 py-1 bg-[#2a2a2a] text-white hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -154,21 +182,34 @@ export default function Cart() {
              </div>
              <div className="flex justify-between text-gray-400 mb-4">
                <span>Shipping:</span>
-               <span className="text-green-400 font-bold">FREE</span>
+               {shippingFee > 0 ? (
+                 <span className="text-white font-bold">₱{shippingFee}</span>
+               ) : (
+                 <span className="text-green-400 font-bold">FREE</span>
+               )}
              </div>
              
              <div className="border-t border-gray-800 my-4"></div>
              
              <div className="flex justify-between items-baseline mb-6">
                <span className="text-lg font-bold text-white">Total:</span>
-               <span className="text-3xl font-black text-temu">₱{subtotal}</span>
+               <span className="text-3xl font-black text-temu">₱{grandTotal}</span>
              </div>
              
-             <Link href="/checkout" className="block w-full">
-               <button className="w-full bg-temu hover:bg-orange-600 text-white font-bold py-4 rounded-full text-lg transition-colors shadow-lg shadow-orange-900/50 disabled:opacity-50">
+             {hasInvalidStockItem ? (
+               <button 
+                 disabled 
+                 className="w-full bg-[#222] text-gray-500 font-bold py-4 rounded-full text-lg cursor-not-allowed transition-colors opacity-50 border border-gray-800"
+               >
                  Checkout
                </button>
-             </Link>
+             ) : (
+               <Link href="/checkout" className="block w-full">
+                 <button className="w-full bg-temu hover:bg-orange-600 text-white font-bold py-4 rounded-full text-lg transition-colors shadow-lg shadow-orange-900/50">
+                   Checkout
+                 </button>
+               </Link>
+             )}
              
              <div className="mt-4 flex justify-center space-x-2 opacity-50">
                <div className="w-10 h-6 bg-gray-700 rounded border border-gray-600"></div>

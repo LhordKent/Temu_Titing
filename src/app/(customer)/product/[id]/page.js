@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import Image from 'next/image';
 import { ShoppingCart, ShieldCheck, Truck, RotateCcw, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -17,12 +17,7 @@ export default function ProductDetails({ params: paramsPromise }) {
   const [adding, setAdding] = useState(false);
   const [reviews, setReviews] = useState([]);
 
-  useEffect(() => {
-    fetchProduct();
-    fetchReviews();
-  }, [id]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -44,9 +39,9 @@ export default function ProductDetails({ params: paramsPromise }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     const { data, error } = await supabase
       .from('reviews')
       .select(`
@@ -57,7 +52,13 @@ export default function ProductDetails({ params: paramsPromise }) {
       .order('created_at', { ascending: false });
 
     if (!error) setReviews(data || []);
-  };
+  }, [id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProduct();
+    fetchReviews();
+  }, [id, fetchProduct, fetchReviews]);
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -67,6 +68,20 @@ export default function ProductDetails({ params: paramsPromise }) {
 
     setAdding(true);
     try {
+      // 1. Fetch real-time latest stock quantity
+      const { data: latestProduct, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', product.id)
+        .single();
+
+      if (productError || !latestProduct) {
+        throw new Error('Failed to verify latest stock.');
+      }
+
+      const stockQuantity = latestProduct.stock_quantity;
+
+      // 2. Fetch existing cart item quantity
       const { data: existingItem } = await supabase
         .from('cart_items')
         .select('*')
@@ -74,10 +89,17 @@ export default function ProductDetails({ params: paramsPromise }) {
         .eq('product_id', product.id)
         .single();
 
+      const existingQty = existingItem ? existingItem.quantity : 0;
+
+      if (existingQty + 1 > stockQuantity) {
+        alert(`Cannot add more. You already have ${existingQty} in your cart, and only ${stockQuantity} are left in stock.`);
+        return;
+      }
+
       if (existingItem) {
         await supabase
           .from('cart_items')
-          .update({ quantity: existingItem.quantity + 1 })
+          .update({ quantity: existingQty + 1 })
           .eq('id', existingItem.id);
       } else {
         await supabase
