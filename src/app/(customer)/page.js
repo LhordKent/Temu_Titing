@@ -3,9 +3,12 @@ import ProductCard from '@/components/ProductCard';
 import { X } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Homepage({ searchParams }) {
-  const query = searchParams?.q;
-  const categorySlug = searchParams?.category;
+  const resolvedSearchParams = await searchParams;
+  const query = resolvedSearchParams?.q;
+  const categorySlug = resolvedSearchParams?.category;
 
   let dbQuery = supabase
     .from('products')
